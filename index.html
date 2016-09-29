@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+     <!-- Shopify Favicon For All Platforms -->
+    <link rel="apple-touch-icon" sizes="57x57" href="images/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="images/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="images/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="images/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="images/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="images/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="images/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="images/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="images/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="images/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+    <link rel="manifest" href="images/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="images/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+
+   
+    <title>Shopify Scraper</title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+
+     <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      .alert{
+        display: none;
+      }
+      .marginTop {
+        margin-top: 100px;
+      }
+      .hidden {
+        display: none;
+      }
+       .alert {
+          margin: 10px;
+       }
+
+  
+    </style>
+
+  </head>
+  <body>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6 col-md-offset-3">
+          <h1 class="marginTop"> Shopicircuit Store Scraper</h1>
+          <h4> Enter the keywords for products you want to aggregate, one at a time (2 keywords max).
+             Capitalize first letter e.g. Clock </h4>
+          <form  method = "post" >
+            <div class="form-group">
+              <input typr="text" class = "form-control" name= "keyword" 
+              id = "keyword-field" placeholder="Enter a keyword to look for" />
+
+            </div>
+            <span>
+              <button id = "addKeyword" class="btn btn-default btn-lg">Add Keyword</button>
+              <button id = "clearKeywords" class="btn btn-default btn-lg">Clear Keywords</button>
+              <button id = "calculate" class="btn btn-success btn-lg">Calculate Cost</button>
+            </span>
+            
+          </form>
+
+          <div class ="alert alert-success" id="keywords"></div>
+
+          <div class ="alert alert-success" id="result"></div>
+
+          <div class ="alert alert-danger" id="fail"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+     
+    <script >
+      var keywords = [];
+      var pageNumber = 1;
+      var totalSum = 0;
+      var grossSum = 0;
+
+      $("#addKeyword").click(function (event){
+        event.preventDefault();
+        if (!$("#keyword-field").val()){
+          $("#fail").html("Enter a keyword!").fadeIn();
+        } else if (keywords.length < 2){
+          $("#fail").fadeOut();
+          var index;
+          var string = "Keywords Added So Far: </br>";
+          keywords.push($("#keyword-field").val());
+          for (index in keywords){
+            string+=(keywords[index] + "<br />");
+          }
+          $("#keywords").html(string).fadeIn();
+        } else {
+          $("#fail").html("You cannot add anymore keywords.").fadeIn();
+        }
+
+        $("#keyword-field").val("");
+      });
+
+      $("#clearKeywords").click(function (event){
+        event.preventDefault();
+        keywords = [];
+        totalSum = 0;
+        grossSum = 0;
+
+        $("#keywords").fadeOut();
+        $("#results").fadeOut();
+        $("#keyword-field").val("");
+      });
+
+      $("#calculate").click(function (event){
+        event.preventDefault();
+       
+       function getJSON(){
+         $.ajax({
+            type: "GET",
+            url: "https://shopicruit.myshopify.com/products.json?page=" + pageNumber,
+            dataType: "json",
+            success: processJSON
+          });
+       }
+         
+      function processJSON (json){
+        pageNumber++;
+        var numProducts = json.products.length;
+        var index;
+        if (numProducts > 0){
+            for (index in json.products){
+            if (json.products[index].title.includes(keywords[0]) || json.products[index].title.includes(keywords[1])){
+              var variant;
+              var lowestPrice = Number.MAX_VALUE;
+              var priceOfVariant;
+              for (variant in json.products[index].variants){
+                console.log(json.products[index].variants[variant].price);
+                priceOfVariant = parseFloat(json.products[index].variants[variant].price);
+                grossSum += priceOfVariant;
+                if (priceOfVariant < lowestPrice){
+                  lowestPrice = priceOfVariant;
+                }
+              }
+              totalSum+=lowestPrice;
+
+            }
+          }
+        }
+
+        $("#result").html("Total Sum when buying the cheapest of each variant: $" + totalSum.toFixed(2) + 
+          "<br /> Total Sum if buying every variant of each product: $" + grossSum.toFixed(2)).fadeIn();
+
+        if (numProducts > 0){
+          getJSON();
+        } else {
+          pageNumber = 0;
+        }
+      }
+
+      getJSON();
+
+      });
+    </script>
+  </body>
+</html>
+
+
+
+
